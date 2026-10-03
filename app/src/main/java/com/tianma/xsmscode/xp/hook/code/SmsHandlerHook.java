@@ -13,10 +13,8 @@ import android.provider.Telephony;
 import com.github.tianma8023.xposed.smscode.BuildConfig;
 import com.github.tianma8023.xposed.smscode.R;
 import com.tianma.xsmscode.common.constant.NotificationConst;
-import com.tianma.xsmscode.common.constant.PrefConst;
 import com.tianma.xsmscode.common.utils.NotificationUtils;
 import com.tianma.xsmscode.common.utils.XLog;
-import com.tianma.xsmscode.common.utils.XSPUtils;
 import com.tianma.xsmscode.xp.helper.XposedWrapper;
 import com.tianma.xsmscode.xp.hook.BaseHook;
 
@@ -24,7 +22,6 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 
 import de.robv.android.xposed.XC_MethodHook;
-import de.robv.android.xposed.XSharedPreferences;
 import de.robv.android.xposed.XposedBridge;
 import de.robv.android.xposed.XposedHelpers;
 import de.robv.android.xposed.callbacks.XC_LoadPackage;
@@ -47,7 +44,7 @@ public class SmsHandlerHook extends BaseHook {
 
     @Override
     public void onLoadPackage(XC_LoadPackage.LoadPackageParam lpparam) {
-        if (ANDROID_PHONE_PACKAGE.equals(lpparam.packageName)) {
+        if (ANDROID_PHONE_PACKAGE.equals(lpparam.packageName) || "com.xiaomi.phone".equals(lpparam.packageName)) {
             XLog.i("SmsCode initializing");
             printDeviceInfo();
             try {
@@ -80,71 +77,8 @@ public class SmsHandlerHook extends BaseHook {
     }
 
     private void hookConstructor(ClassLoader classloader) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-            // Android 14+
-            hookConstructor34(classloader);
-        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            // Android 11+
-            hookConstructor30(classloader);
-        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-            // Android 7.0 ~ 10 (api 24 - 29)
-            hookConstructor24(classloader);
-        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
-            // Android 4.4 ~ 6.1 (api 19 - 23)
-            hookConstructor19(classloader);
-        }
-    }
-
-    // Android 14+
-    private void hookConstructor34(ClassLoader classLoader) {
-        XLog.i("Hooking InboundSmsHandler constructor for android v34+");
-//        XposedHelpers.findAndHookConstructor(SMS_HANDLER_CLASS, classLoader,
-//                /* name                 */ String.class,
-//                /* context              */ Context.class,
-//                /* storageMonitor       */ TELEPHONY_PACKAGE + ".SmsStorageMonitor",
-//                /* phone                */ TELEPHONY_PACKAGE + ".Phone",
-//                /* cellBroadcastHandler */ TELEPHONY_PACKAGE + ".CellBroadcastHandler",
-//                /* smsDispatchersController */ TELEPHONY_PACKAGE + ".SmsDispatchersController",
-//                new ConstructorHook());
-        Class<?> smsHandlerClazz = XposedWrapper.findClass(SMS_HANDLER_CLASS, classLoader);
-        if (smsHandlerClazz != null) {
-            XposedBridge.hookAllConstructors(smsHandlerClazz, new ConstructorHook());
-        }
-    }
-
-    // Android 11+
-    private void hookConstructor30(ClassLoader classloader) {
-        XLog.i("Hooking InboundSmsHandler constructor for android v30+");
-        XposedHelpers.findAndHookConstructor(SMS_HANDLER_CLASS, classloader,
-                /* name                 */ String.class,
-                /* context              */ Context.class,
-                /* storageMonitor       */ TELEPHONY_PACKAGE + ".SmsStorageMonitor",
-                /* phone                */ TELEPHONY_PACKAGE + ".Phone",
-                new ConstructorHook());
-    }
-
-    // Android N+
-    private void hookConstructor24(ClassLoader classloader) {
-        XLog.i("Hooking InboundSmsHandler constructor for android v24+");
-        XposedHelpers.findAndHookConstructor(SMS_HANDLER_CLASS, classloader,
-                /* name                 */ String.class,
-                /* context              */ Context.class,
-                /* storageMonitor       */ TELEPHONY_PACKAGE + ".SmsStorageMonitor",
-                /* phone                */ TELEPHONY_PACKAGE + ".Phone",
-                /* cellBroadcastHandler */ TELEPHONY_PACKAGE + ".CellBroadcastHandler",
-                new ConstructorHook());
-    }
-
-    // Android KitKat+
-    private void hookConstructor19(ClassLoader classloader) {
-        XLog.i("Hooking InboundSmsHandler constructor for Android v19+");
-        XposedHelpers.findAndHookConstructor(SMS_HANDLER_CLASS, classloader,
-                /*                 name */ String.class,
-                /*              context */ Context.class,
-                /*       storageMonitor */ TELEPHONY_PACKAGE + ".SmsStorageMonitor",
-                /*                phone */ TELEPHONY_PACKAGE + ".PhoneBase",
-                /* cellBroadcastHandler */ TELEPHONY_PACKAGE + ".CellBroadcastHandler",
-                new ConstructorHook());
+        Class<?> handler = XposedWrapper.findClass(SMS_HANDLER_CLASS, classloader);
+        if (handler != null) XposedBridge.hookAllConstructors(handler, new ConstructorHook());
     }
 
     private void hookDispatchIntent(ClassLoader classloader) {
@@ -207,34 +141,22 @@ public class SmsHandlerHook extends BaseHook {
             return;
         }
 
-        Method[] methods = inboundSmsHandlerClass.getDeclaredMethods();
-        Method exactMethod = null;
-        final String DISPATCH_INTENT = "dispatchIntent";
-        int receiverIndex = 0;
-        for (Method method : methods) {
-            String methodName = method.getName();
-            if (DISPATCH_INTENT.equals(methodName)) {
-                exactMethod = method;
-
-                Class<?>[] parameterTypes = method.getParameterTypes();
-                for (int i = 0; i < parameterTypes.length; i++) {
-                    Class<?> parameterType = parameterTypes[i];
-                    if (BroadcastReceiver.class.isAssignableFrom(parameterType)) {
-                        // 是否是 BroadcastReceiver 或者其 子类
-                        receiverIndex = i;
-                    }
-                }
-
-                break;
+        int hooked = 0;
+        for (Method method : inboundSmsHandlerClass.getDeclaredMethods()) {
+            if (!"dispatchIntent".equals(method.getName()) || method.getReturnType() != void.class) continue;
+            int intentIndex = -1;
+            int receiverIndex = -1;
+            Class<?>[] types = method.getParameterTypes();
+            for (int i = 0; i < types.length; i++) {
+                if (Intent.class.isAssignableFrom(types[i])) intentIndex = i;
+                if (BroadcastReceiver.class.isAssignableFrom(types[i])) receiverIndex = i;
+            }
+            if (intentIndex >= 0) {
+                XposedWrapper.hookMethod(method, new DispatchIntentHook(intentIndex, receiverIndex));
+                hooked++;
             }
         }
-
-        if (exactMethod == null) {
-            XLog.e("Method %s for Class %s cannot found", DISPATCH_INTENT, SMS_HANDLER_CLASS);
-            return;
-        }
-
-        XposedWrapper.hookMethod(exactMethod, new DispatchIntentHook(receiverIndex));
+        XLog.i("Installed %d SMS dispatch hooks", hooked);
     }
 
     private class ConstructorHook extends XC_MethodHook {
@@ -244,23 +166,45 @@ public class SmsHandlerHook extends BaseHook {
                 afterConstructorHandler(param);
             } catch (Throwable e) {
                 XLog.e("Error occurred in constructor hook", e);
-                throw e;
+                // 模块错误不能中断电话服务原有逻辑。
             }
         }
     }
 
     private void afterConstructorHandler(XC_MethodHook.MethodHookParam param) {
-        Context context = (Context) param.args[1];
         if (mPhoneContext == null) {
-            mPhoneContext = context;
-            try {
-                mPluginContext = mPhoneContext.createPackageContext(SMSCODE_PACKAGE,
-                        Context.CONTEXT_IGNORE_SECURITY);
-                initNotificationChannel();
-                registerCopyCodeReceiver();
-            } catch (Exception e) {
-                XLog.e("Create plugin context failed: %s", e);
+            for (Object argument : param.args) {
+                if (argument instanceof Context) {
+                    mPhoneContext = (Context) argument;
+                    break;
+                }
             }
+        }
+        initializeContext(param.thisObject);
+    }
+
+    private void initializeContext(Object handler) {
+        if (mPhoneContext == null) {
+            try {
+                Object context = XposedHelpers.getObjectField(handler, "mContext");
+                if (context instanceof Context) mPhoneContext = (Context) context;
+            } catch (Throwable e) {
+                XLog.e("Cannot recover phone context", e);
+            }
+        }
+        if (mPhoneContext == null) return;
+        long identity = Binder.clearCallingIdentity();
+        try {
+            if (mPluginContext == null) {
+                mPluginContext = mPhoneContext.createPackageContext(SMSCODE_PACKAGE, Context.CONTEXT_IGNORE_SECURITY);
+                initNotificationChannel();
+            }
+            // 允许用户在模块运行后打开通知开关；接收器在进程内只注册一次。
+            CopyCodeReceiver.registerMe(mPhoneContext);
+        } catch (Throwable e) {
+            XLog.e("Initialize SMS runtime context failed", e);
+        } finally {
+            Binder.restoreCallingIdentity(identity);
         }
     }
 
@@ -274,34 +218,49 @@ public class SmsHandlerHook extends BaseHook {
         }
     }
 
-    private void registerCopyCodeReceiver() {
-        XSharedPreferences xsp = new XSharedPreferences(BuildConfig.APPLICATION_ID, PrefConst.PREF_NAME);
-        if (XSPUtils.showCodeNotification(xsp)) {
-            CopyCodeReceiver.registerMe(mPhoneContext);
-            XLog.d("Register copy code receiver");
-        }
-    }
+    private final ThreadLocal<Integer> dispatchDepth = new ThreadLocal<Integer>() {
+        @Override protected Integer initialValue() { return 0; }
+    };
 
     private class DispatchIntentHook extends XC_MethodHook {
         private final int mReceiverIndex;
+        private final int mIntentIndex;
 
         DispatchIntentHook(int receiverIndex) {
+            this(0, receiverIndex);
+        }
+
+        DispatchIntentHook(int intentIndex, int receiverIndex) {
+            mIntentIndex = intentIndex;
             mReceiverIndex = receiverIndex;
         }
 
         @Override
         protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
             try {
-                beforeDispatchIntentHandler(param, mReceiverIndex);
+                Intent intent = (Intent) param.args[mIntentIndex];
+                if (intent == null || !Telephony.Sms.Intents.SMS_DELIVER_ACTION.equals(intent.getAction())) return;
+                int depth = dispatchDepth.get();
+                dispatchDepth.set(depth + 1);
+                param.setObjectExtra("smscode_dispatch", true);
+                if (depth == 0) beforeDispatchIntentHandler(param, intent, mReceiverIndex);
             } catch (Throwable e) {
                 XLog.e("Error occurred in dispatchIntent() hook, ", e);
-                throw e;
+                // 模块错误不能中断电话服务原有逻辑。
+            }
+        }
+
+        @Override
+        protected void afterHookedMethod(MethodHookParam param) {
+            if (Boolean.TRUE.equals(param.getObjectExtra("smscode_dispatch"))) {
+                int depth = dispatchDepth.get() - 1;
+                if (depth == 0) dispatchDepth.remove();
+                else dispatchDepth.set(depth);
             }
         }
     }
 
-    private void beforeDispatchIntentHandler(XC_MethodHook.MethodHookParam param, int receiverIndex) {
-        Intent intent = (Intent) param.args[0];
+    private void beforeDispatchIntentHandler(XC_MethodHook.MethodHookParam param, Intent intent, int receiverIndex) {
         String action = intent.getAction();
 
         // We only care about the initial SMS_DELIVER intent,
@@ -310,29 +269,32 @@ public class SmsHandlerHook extends BaseHook {
             return;
         }
 
+        initializeContext(param.thisObject);
+        if (mPhoneContext == null || mPluginContext == null) return;
         ParseResult parseResult = new CodeWorker(getPluginContext(), mPhoneContext, intent).parse();
         if (parseResult != null) {// parse succeed
-            if (parseResult.isBlockSms()) {
+            if (parseResult.isBlockSms() && receiverIndex >= 0 && param.args[receiverIndex] != null) {
                 XLog.d("Blocking code SMS...");
-                deleteRawTableAndSendMessage(param.thisObject, param.args[receiverIndex]);
-                param.setResult(null);
+                if (deleteRawTableAndSendMessage(param.thisObject, param.args[receiverIndex])) param.setResult(null);
             }
         }
     }
 
     private static final int EVENT_BROADCAST_COMPLETE = 3;
 
-    private void deleteRawTableAndSendMessage(Object inboundSmsHandler, Object smsReceiver) {
+    private boolean deleteRawTableAndSendMessage(Object inboundSmsHandler, Object smsReceiver) {
         long token = Binder.clearCallingIdentity();
         try {
             deleteFromRawTable(inboundSmsHandler, smsReceiver);
         } catch (Throwable e) {
             XLog.e("Error occurs when delete SMS data from raw table", e);
+            return false;
         } finally {
             Binder.restoreCallingIdentity(token);
         }
 
         sendEventBroadcastComplete(inboundSmsHandler);
+        return true;
     }
 
     private void sendEventBroadcastComplete(Object inboundSmsHandler) {

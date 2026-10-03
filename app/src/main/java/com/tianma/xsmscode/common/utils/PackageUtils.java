@@ -2,6 +2,7 @@ package com.tianma.xsmscode.common.utils;
 
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.ActivityInfo;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
@@ -84,40 +85,6 @@ public class PackageUtils {
         return false;
     }
 
-    private static boolean checkAlipayExists(Context context) {
-        int packageState = checkPackageState(context, Const.ALIPAY_PACKAGE_NAME);
-        if (packageState == PACKAGE_ENABLED) {
-            return true;
-        } else if (packageState == PACKAGE_DISABLED) {
-            Toast.makeText(context, R.string.alipay_enable_prompt, Toast.LENGTH_SHORT).show();
-        } else if (packageState == PACKAGE_NOT_INSTALLED) {
-            Toast.makeText(context, R.string.alipay_install_prompt, Toast.LENGTH_SHORT).show();
-        }
-        return false;
-    }
-
-    /**
-     * 打开支付宝
-     */
-    public static void startAlipayActivity(Context context) {
-        if (checkAlipayExists(context)) {
-            PackageManager pm = context.getPackageManager();
-            Intent intent = pm.getLaunchIntentForPackage(Const.ALIPAY_PACKAGE_NAME);
-            context.startActivity(intent);
-        }
-    }
-
-    /**
-     * 打开支付宝捐赠页
-     */
-    public static void startAlipayDonatePage(Context context) {
-        if (checkAlipayExists(context)) {
-            Intent intent = new Intent(Intent.ACTION_VIEW);
-            intent.setData(Uri.parse(Const.ALIPAY_QRCODE_URI_PREFIX + Const.ALIPAY_QRCODE_URL));
-            context.startActivity(intent);
-        }
-    }
-
     public enum Section {
         INSTALL("install", 0),
         MODULES("modules", 1);
@@ -159,21 +126,36 @@ public class PackageUtils {
                 || startOldXposedActivity(context, section.mSection);
     }
 
-    /**
-     * Join QQ group
-     */
-    public static void joinQQGroup(Context context) {
-        String key = Const.QQ_GROUP_KEY;
-        Intent intent = new Intent();
-        intent.setData(Uri.parse("mqqopensdkapi://bizAgent/qm/qr?url=http%3A%2F%2Fqm.qq.com%2Fcgi-bin%2Fqm%2Fqr%3Ffrom%3Dapp%26p%3Dandroid%26k%3D" + key));
-        // 此Flag可根据具体产品需要自定义，如设置，则在加群界面按返回，返回手Q主界面，不设置，按返回会返回到呼起产品界面
-        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+    public static boolean openModuleInLsposed(Context context) {
+        // LSPosed 接受 module://包名:用户ID，直接打开当前模块的作用域页面。
+        Uri module = Uri.parse("module://" + BuildConfig.APPLICATION_ID + ":" + android.os.Process.myUid() / 100000);
         try {
-            context.startActivity(intent);
-        } catch (Exception e) {
-            // 未安装手Q或安装的版本不支持
-            Toast.makeText(context, R.string.prompt_join_qq_group_failed, Toast.LENGTH_SHORT).show();
+            Intent manager = context.getPackageManager().getLaunchIntentForPackage("org.lsposed.manager");
+            if (manager != null) {
+                context.startActivity(manager.setData(module).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+                return true;
+            }
+        } catch (android.content.ActivityNotFoundException | SecurityException ignored) {
         }
+        try {
+            // 寄生管理器没有独立包名；与 LSPosed 自身的快捷方式使用同一启动入口。
+            PackageInfo shell = context.getPackageManager().getPackageInfo("com.android.shell", PackageManager.GET_ACTIVITIES);
+            if (shell.activities != null) {
+                for (ActivityInfo activity : shell.activities) {
+                    if (activity.enabled && "com.android.shell".equals(activity.processName)) {
+                        Intent manager = new Intent(Intent.ACTION_MAIN)
+                                .setClassName(activity.packageName, activity.name)
+                                .setPackage(activity.packageName)
+                                .addCategory("org.lsposed.manager.LAUNCH_MANAGER")
+                                .setData(module).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                        context.startActivity(manager);
+                        return true;
+                    }
+                }
+            }
+        } catch (PackageManager.NameNotFoundException | android.content.ActivityNotFoundException | SecurityException ignored) {
+        }
+        return startXposedActivity(context, Section.MODULES);
     }
 
     private static boolean checkTaiChiExists(Context context) {
@@ -222,19 +204,5 @@ public class PackageUtils {
         }
     }
 
-    public static void showAppDetailsInCoolApk(Context context) {
-        int packageState = checkPackageState(context, Const.COOL_MARKET_PACKAGE_NAME);
-        if (packageState == PACKAGE_ENABLED) {
-            Intent intent = new Intent(Intent.ACTION_VIEW);
-            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            intent.setData(Uri.parse("market://details?id=" + BuildConfig.APPLICATION_ID));
-            intent.setPackage(Const.COOL_MARKET_PACKAGE_NAME);
-            context.startActivity(intent);
-        } else if (packageState == PACKAGE_DISABLED) {
-            Toast.makeText(context, R.string.coolapk_enable_prompt, Toast.LENGTH_SHORT).show();
-        } else if (packageState == PACKAGE_NOT_INSTALLED) {
-            Toast.makeText(context, R.string.coolapk_install_prompt, Toast.LENGTH_SHORT).show();
-        }
-    }
 
 }

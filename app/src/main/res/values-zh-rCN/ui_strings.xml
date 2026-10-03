@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="tab_overview_title">概览</string>
+    <string name="tab_records_title">记录</string>
+    <string name="tab_settings_title">设置</string>
+    <string name="overview_active_hint">框架已启用模块，短信处理按功能开关执行。</string>
+    <string name="overview_inactive_hint">点击打开 LSPosed 或查看激活方法。启用本模块、勾选作用域后重启设备。</string>
+    <string name="overview_quick_controls">常用功能</string>
+    <string name="overview_shortcuts">管理与配置</string>
+    <string name="overview_app_info">应用与设备</string>
+    <string name="overview_version_format">版本 %1$s（%2$d）</string>
+    <string name="overview_device_format">%1$s %2$s · Android %3$s</string>
+    <string name="record_search_hint">搜索发件人、验证码或短信</string>
+    <string name="record_empty_hint">还没有验证码记录
+识别成功的短信会显示在这里</string>
+    <string name="record_no_results">没有匹配的记录</string>
+    <string name="invalid_regex_hint">正则表达式无效，请检查后重试</string>
+    <string name="invalid_delay_hint">请输入非负整数秒数</string>
+    <string name="record_details_format">发件人：%1$s\n时间：%2$s\n\n%3$s</string>
+    <string name="module_manager_open_failed">无法直接打开 LSPosed。请通过桌面快捷方式打开，或下拉通知栏点击「LSPosed 已加载」通知。\n\n进入 %1$s，打开「启用模块」、勾选推荐作用域，然后重启设备。</string>
+    <string name="module_activation_title">激活模块</string>
+</resources>

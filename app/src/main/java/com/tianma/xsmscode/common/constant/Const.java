@@ -7,21 +7,10 @@ import com.github.tianma8023.xposed.smscode.BuildConfig;
  */
 public interface Const {
 
-    /* Alipay begin */
-    String ALIPAY_PACKAGE_NAME = "com.eg.android.AlipayGphone";
-    String ALIPAY_QRCODE_URI_PREFIX = "alipayqr://platformapi/startapp?saId=10000007&qrcode=";
-    String ALIPAY_QRCODE_URL = "HTTPS://QR.ALIPAY.COM/FKX074142EKXD0OIMV8B60";
-    /* Alipay end */
-
-    /* QQ begin */
-    String QQ_GROUP_KEY = "jWGrWgSGLGQ0NyyRsKqRlrApRCzecuNA";
-    /* QQ end */
-
     /* Xposed SmsCode begin */
     String HOME_ACTIVITY_ALIAS = BuildConfig.APPLICATION_ID + ".HomeActivityAlias";
 
     String PROJECT_SOURCE_CODE_URL = "https://github.com/tianma8023/XposedSmsCode";
-    String PROJECT_GITHUB_LATEST_RELEASE_URL = PROJECT_SOURCE_CODE_URL + "/releases/latest";
     String PROJECT_DOC_BASE_URL = "https://tianma8023.github.io/SmsCode";
     String DOC_SMS_CODE_RULE_HELP ="sms_code_rule_help";
     /* Xposed SmsCode end */
@@ -41,7 +30,4 @@ public interface Const {
     String XPOSED_EXTRA_FRAGMENT = "fragment";
     /* Xposed Installer end */
 
-    /* CoolApk */
-    String COOL_MARKET_PACKAGE_NAME = "com.coolapk.market";
-    /* CoolApk end */
 }

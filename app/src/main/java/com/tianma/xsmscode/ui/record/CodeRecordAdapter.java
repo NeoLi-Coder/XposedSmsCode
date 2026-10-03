@@ -30,6 +30,8 @@ public class CodeRecordAdapter extends RecyclerView.Adapter<CodeRecordAdapter.VH
 
     private Context mContext;
     private List<RecordItem> mRecords;
+    private final List<RecordItem> visibleRecords = new ArrayList<>();
+    private String query = "";
 
     private SimpleDateFormat mFormat;
 
@@ -53,6 +55,7 @@ public class CodeRecordAdapter extends RecyclerView.Adapter<CodeRecordAdapter.VH
     CodeRecordAdapter(Context context, List<RecordItem> records) {
         mContext = context;
         mRecords = records;
+        visibleRecords.addAll(records);
 
         mFormat = new SimpleDateFormat("MM.dd HH:mm", Locale.getDefault());
     }
@@ -74,7 +77,7 @@ public class CodeRecordAdapter extends RecyclerView.Adapter<CodeRecordAdapter.VH
 
     @Override
     public int getItemCount() {
-        return mRecords == null ? 0 : mRecords.size();
+        return visibleRecords.size();
     }
 
     @Override
@@ -125,9 +128,7 @@ public class CodeRecordAdapter extends RecyclerView.Adapter<CodeRecordAdapter.VH
                 mCheckBox.setChecked(data.isSelected());
             }
 
-            if (TextUtils.isEmpty(smsMsg.getBody())) {
-                mDetailsView.setVisibility(View.GONE);
-            }
+            mDetailsView.setVisibility(TextUtils.isEmpty(smsMsg.getBody()) ? View.GONE : View.VISIBLE);
         }
 
         void bindListener(final RecordItem data, final int position) {
@@ -150,7 +151,7 @@ public class CodeRecordAdapter extends RecyclerView.Adapter<CodeRecordAdapter.VH
     }
 
     private RecordItem getItemAt(int position) {
-        return mRecords.get(position);
+        return visibleRecords.get(position);
     }
 
     public void setItemSelected(int position, boolean selected) {
@@ -193,7 +194,7 @@ public class CodeRecordAdapter extends RecyclerView.Adapter<CodeRecordAdapter.VH
             }
         }
         mRecords.removeAll(recordsToRemove);
-        notifyDataSetChanged();
+        filterRecords();
         return messagesToRemove;
     }
 
@@ -213,8 +214,40 @@ public class CodeRecordAdapter extends RecyclerView.Adapter<CodeRecordAdapter.VH
                 long date2 = o2.getSmsMsg().getDate();
                 return Long.compare(date2, date1);
             });
-            notifyDataSetChanged();
+            filterRecords();
         }
+    }
+
+    public void replaceItems(List<SmsMsg> messages) {
+        mRecords.clear();
+        addItems(messages);
+        filterRecords();
+    }
+
+    public void setQuery(String value) {
+        query = value.trim().toLowerCase(Locale.ROOT);
+        // 搜索范围改变时退出多选，防止删除不可见的已选记录。
+        for (RecordItem item : mRecords) item.setSelected(false);
+        mMode = RECORD_MODE_NORMAL;
+        filterRecords();
+    }
+
+    public boolean hasQuery() { return !query.isEmpty(); }
+
+    private void filterRecords() {
+        visibleRecords.clear();
+        for (RecordItem item : mRecords) {
+            SmsMsg msg = item.getSmsMsg();
+            if (query.isEmpty() || containsQuery(msg.getSender()) || containsQuery(msg.getCompany())
+                    || containsQuery(msg.getSmsCode()) || containsQuery(msg.getBody())) {
+                visibleRecords.add(item);
+            }
+        }
+        notifyDataSetChanged();
+    }
+
+    private boolean containsQuery(String value) {
+        return value != null && value.toLowerCase(Locale.ROOT).contains(query);
     }
 
     void setMode(@RecordMode int mode) {

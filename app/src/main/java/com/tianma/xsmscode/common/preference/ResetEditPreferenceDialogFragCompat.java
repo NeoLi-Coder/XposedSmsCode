@@ -45,17 +45,21 @@ public class ResetEditPreferenceDialogFragCompat extends PreferenceDialogFragmen
     protected void onBindDialogView(View view) {
         super.onBindDialogView(view);
         this.mEditText = view.findViewById(android.R.id.edit);
-        this.mEditText.requestFocus();
         if (this.mEditText == null) {
             throw new IllegalStateException("Dialog view must contain an EditText with id @android:id/edit");
         } else {
+            this.mEditText.requestFocus();
             this.mEditText.setText(this.mText);
             this.mEditText.setSelection(this.mEditText.getText().length());
         }
     }
 
-    protected boolean needInputMethod() {
-        return true;
+    @Override
+    public void onStart() {
+        super.onStart();
+        if (getDialog() != null && getDialog().getWindow() != null) {
+            getDialog().getWindow().setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_VISIBLE);
+        }
     }
 
     @Override

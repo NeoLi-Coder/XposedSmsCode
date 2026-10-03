@@ -48,10 +48,24 @@ public class CodeWorker {
 
         mUIHandler = new Handler(Looper.getMainLooper());
 
-        mScheduledExecutor = Executors.newSingleThreadScheduledExecutor();
+        mScheduledExecutor = Executors.newSingleThreadScheduledExecutor(runnable -> {
+            Thread thread = new Thread(runnable, "XSmsCode-actions");
+            thread.setDaemon(true);
+            return thread;
+        });
     }
 
     public ParseResult parse() {
+        try {
+            if (mPluginContext == null || mPhoneContext == null || mSmsIntent == null) return null;
+            return parseAndDispatch();
+        } finally {
+            // shutdown 保留已经安排的延迟任务，最后一个任务完成后线程自动退出。
+            mScheduledExecutor.shutdown();
+        }
+    }
+
+    private ParseResult parseAndDispatch() {
         if (!XSPUtils.isEnabled(xsp)) {
             XLog.i("XposedSmsCode disabled, exiting");
             return null;
@@ -70,7 +84,7 @@ public class CodeWorker {
 
         final SmsMsg smsMsg;
         try {
-            Bundle parseBundle = smsParseFuture.get();
+            Bundle parseBundle = smsParseFuture.get(10, TimeUnit.SECONDS);
             if (parseBundle == null) {
                 // the SMS message doesn't contain verification code
                 return null;
@@ -81,8 +95,13 @@ public class CodeWorker {
                 return buildParseResult();
             }
 
+            parseBundle.setClassLoader(SmsMsg.class.getClassLoader());
             smsMsg = parseBundle.getParcelable(SmsParseAction.SMS_MSG);
+            if (smsMsg == null) return null;
         } catch (Exception e) {
+            smsParseFuture.cancel(true);
+            mScheduledExecutor.shutdownNow();
+            if (e instanceof InterruptedException) Thread.currentThread().interrupt();
             XLog.e("Error occurs when get SmsParseAction call value", e);
             return null;
         }
@@ -94,6 +113,10 @@ public class CodeWorker {
         // 显示Toast Action
         mUIHandler.post(new ToastAction(mPluginContext, mPhoneContext, smsMsg, xsp));
 
+        // 显示通知 Action
+        NotifyAction notifyAction = new NotifyAction(mPluginContext, mPhoneContext, smsMsg, xsp);
+        ScheduledFuture<Bundle> notificationFuture = mScheduledExecutor.schedule(notifyAction, 0, TimeUnit.MILLISECONDS);
+
         // 自动输入 Action
         if (XSPUtils.autoInputCodeEnabled(xsp)) {
             AutoInputAction autoInputAction = new AutoInputAction(mPluginContext, mPhoneContext, smsMsg, xsp);
@@ -101,25 +124,27 @@ public class CodeWorker {
             mScheduledExecutor.schedule(autoInputAction, autoInputDelay, TimeUnit.MILLISECONDS);
         }
 
-        // 显示通知 Action
-        NotifyAction notifyAction = new NotifyAction(mPluginContext, mPhoneContext, smsMsg, xsp);
-        ScheduledFuture<Bundle> notificationFuture = mScheduledExecutor.schedule(notifyAction, 0, TimeUnit.MILLISECONDS);
-
         // 记录验证码短信 Action
         RecordSmsAction recordSmsAction = new RecordSmsAction(mPluginContext, mPhoneContext, smsMsg, xsp);
         mScheduledExecutor.schedule(recordSmsAction, 0, TimeUnit.MILLISECONDS);
 
         // 操作验证码短信（标记为已读 或者 删除） Action
-        OperateSmsAction operateSmsAction = new OperateSmsAction(mPluginContext, mPhoneContext, smsMsg, xsp);
-        mScheduledExecutor.schedule(operateSmsAction, 3000, TimeUnit.MILLISECONDS);
+        if (XSPUtils.markAsReadEnabled(xsp) || XSPUtils.deleteSmsEnabled(xsp)) {
+            OperateSmsAction operateSmsAction = new OperateSmsAction(mPluginContext, mPhoneContext, smsMsg, xsp);
+            mScheduledExecutor.schedule(operateSmsAction, 3000, TimeUnit.MILLISECONDS);
+        }
 
         // 自杀 Action
-        KillMeAction action = new KillMeAction(mPluginContext, mPhoneContext, smsMsg, xsp);
-        mScheduledExecutor.schedule(action, 4000, TimeUnit.MILLISECONDS);
+        if (XSPUtils.killMeEnabled(xsp)) {
+            KillMeAction action = new KillMeAction(mPluginContext, mPhoneContext, smsMsg, xsp);
+            long inputDelay = XSPUtils.autoInputCodeEnabled(xsp) ? XSPUtils.getAutoInputCodeDelay(xsp) * 1000L : 0;
+            // 同一个队列中输入先于清理排队，避免配置较长输入延迟时提前杀掉模块进程。
+            mScheduledExecutor.schedule(action, Math.max(4000, inputDelay), TimeUnit.MILLISECONDS);
+        }
 
         try {
             // 清除通知
-            Bundle bundle = notificationFuture.get();
+            Bundle bundle = notificationFuture.get(10, TimeUnit.SECONDS);
             if (bundle != null && bundle.containsKey(NotifyAction.NOTIFY_RETENTION_TIME)) {
                 long delay = bundle.getLong(NotifyAction.NOTIFY_RETENTION_TIME, 0L);
                 int notificationId = bundle.getInt(NotifyAction.NOTIFY_ID, 0);
@@ -129,6 +154,8 @@ public class CodeWorker {
                 mScheduledExecutor.schedule(cancelNotifyAction, delay, TimeUnit.MILLISECONDS);
             }
         } catch (Exception e) {
+            notificationFuture.cancel(true);
+            if (e instanceof InterruptedException) Thread.currentThread().interrupt();
             XLog.e("Error in notification future get()", e);
         }
 

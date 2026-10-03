@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">XposedSmsCode</string>
+    <string name="app_name">SmsCode Assistant</string>
     <string name="xposed_description">Extract code from new SMS message and copy it to clipboard. It can also Auto-input SMS code</string>
 
     <!-- general -->
@@ -115,15 +115,9 @@
     <string name="pref_about_title">About</string>
     <string name="pref_version_title">Version</string>
     <string name="pref_version_summary"><![CDATA[Current version: %1$s (%2$d)]]></string>
-    <string name="pref_join_qq_group_title">Communication and Bug report</string>
-    <string name="pref_join_qq_group_summary">QQ group: 478884682</string>
-    <string name="prompt_join_qq_group_failed">Please install or enable QQ first</string>
-    <string name="pref_source_code_title">Source code</string>
+    <string name="pref_source_code_title">Original project source</string>
     <string name="browser_install_or_enable_prompt">Please install or enable browser first</string>
-    <string name="pref_source_code_summary">Welcome to star ♪(＾∀＾●)ﾉ</string>
-    <string name="pref_donate_by_alipay_title">Donate by Alipay</string>
-    <string name="alipay_install_prompt">Please install Alipay</string>
-    <string name="alipay_enable_prompt">Please enable Alipay</string>
+    <string name="pref_source_code_summary">Maintained independently from tianma8023/XposedSmsCode and other forks.</string>
     <string name="wechat_install_prompt">Please install Wechat</string>
     <string name="wechat_enable_prompt">Please enable Wechat</string>
     <string name="pref_privacy_policy_title">Privacy Policy</string>
@@ -219,18 +213,6 @@
     <string name="simplified_answer">A:\u00A0</string>
     <!-- faq end -->
 
-    <!-- alipay packet start -->
-    <string name="pref_get_alipay_packet_title">Get Alipay red packet</string>
-    <string name="pref_get_alipay_packet_summary">Get free alipay red packet everyday</string>
-    <string name="pref_get_alipay_packet_content">Open alipay and search %s, you can receive red packet everyday.</string>
-    <string name="copy_packet_code_open_alipay"><![CDATA[Copy code & Open alipay]]></string>
-    <string name="alipay_red_packet_code_copied">Alipay red packet code copied: %s</string>
-    <string name="get_red_packet">Get red packet</string>
-    <string name="dialog_donate_by_alipay_title">Donation</string>
-    <string name="dialog_donate_by_alipay_content">Buy me a coffee ^_^</string>
-    <string name="dialog_donate_confirm">Sure</string>
-    <string name="dialog_donate_cancel">No</string>
-    <!-- alipay packet end -->
 
     <!-- taichi users notice -->
     <string name="taichi_users_notice">Taichi Users Notice</string>
@@ -247,14 +229,6 @@
     <string name="edxposed_users_notice_content">1. This module should hook these apps：\n\t· Phone Services(com.android.phone)\n\t· Android System(android) \n\n2. If this module is inactive after updating, please re-check this module in module manager list and reboot. \n\n3. If it cannot work in global mode, then try to change to whitelist(Xposed Hide White) mode or scope mode and add the apps above.</string>
     <!-- edxposed users notice end -->
 
-    <!-- check update -->
-    <string name="new_version_found">New version found!</string>
-    <string name="check_update_failed">Check update failed.</string>
-    <string name="app_already_newest">Current version is the latest.</string>
-    <string name="update_from_github">Go to GitHub</string>
-    <string name="update_from_coolapk">Go to Coolapk</string>
-    <string name="coolapk_install_prompt">Please install CoolApk</string>
-    <string name="coolapk_enable_prompt">Please enable CoolApk</string>
     <!-- check update end -->
 
     <!-- theme Cyanea -->

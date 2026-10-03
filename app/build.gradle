@@ -14,15 +14,15 @@ def static releaseTime() {
     return new Date().format("yyMMdd", TimeZone.default)
 }
 
-def VERSION_NAME = "2.5.1"
-def VERSION_CODE = 52
+def VERSION_NAME = "2.6.2"
+def VERSION_CODE = 55
 
 android {
     namespace 'com.github.tianma8023.xposed.smscode'
 
     compileSdk 34
     defaultConfig {
-        applicationId "com.github.tianma8023.xposed.smscode"
+        applicationId "com.xsmscode.standalone"
         minSdkVersion 23
         targetSdkVersion 34
         versionCode VERSION_CODE
@@ -103,7 +103,7 @@ android {
 
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
-            output.outputFileName = "XposedSmsCode_v${variant.versionName.replaceAll('\\s+', '_')}_${releaseTime()}_${variant.buildType.name.charAt(0)}.apk"
+            output.outputFileName = "SmsCodeAssistant_v${variant.versionName.replaceAll('\\s+', '_')}_${releaseTime()}_${variant.buildType.name.charAt(0)}.apk"
         }
     }
 
@@ -213,4 +213,16 @@ dependencies {
 
     // Cyanea
     implementation "com.jaredrummler:cyanea:$cyaneaVersion"
+}
+
+// ButterKnife 10 使用 javac 内部类；仅编译工作进程需要这些 JDK 16+ 访问权限。
+tasks.withType(JavaCompile).configureEach {
+    if (JavaVersion.current().isCompatibleWith(JavaVersion.VERSION_16)) {
+        options.fork = true
+        options.forkOptions.jvmArgs += [
+                '--add-exports=jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED',
+                '--add-exports=jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED',
+                '--add-exports=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED'
+        ]
+    }
 }

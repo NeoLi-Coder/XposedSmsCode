@@ -49,10 +49,14 @@ public class SmsMsg implements Parcelable {
     private String smsCode;
 
     public static SmsMsg fromIntent(Intent intent) {
+        if (intent == null) return null;
         SmsMessage[] smsMessageParts = SmsMessageUtils.fromIntent(intent);
+        if (smsMessageParts == null || smsMessageParts.length == 0) return null;
+        for (SmsMessage part : smsMessageParts) if (part == null) return null;
         String sender = smsMessageParts[0].getDisplayOriginatingAddress();
         String body = SmsMessageUtils.getMessageBody(smsMessageParts);
 
+        if (sender == null || body == null) return null;
         sender = Normalizer.normalize(sender, Normalizer.Form.NFC);
         body = Normalizer.normalize(body, Normalizer.Form.NFC);
 

@@ -10,10 +10,11 @@ import com.tianma.xsmscode.data.db.entity.SmsCodeRule;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParseException;
 import com.google.gson.JsonParser;
 import com.google.gson.stream.JsonReader;
 
+import com.tianma.xsmscode.common.utils.SmsCodeParser;
+import java.nio.charset.StandardCharsets;
 import java.io.Closeable;
 import java.io.File;
 import java.io.FileInputStream;
@@ -45,7 +46,7 @@ public class RuleImporter implements Closeable{
      * @param retain whether it retains current rules or not.
      */
     public void doImport(Context context, boolean retain) throws BackupInvalidException {
-        JsonReader jsonReader = new JsonReader(new InputStreamReader(mJsonStream));
+        JsonReader jsonReader = new JsonReader(new InputStreamReader(mJsonStream, StandardCharsets.UTF_8));
 
         try {
             JsonElement jsonElement = new JsonParser().parse(jsonReader);
@@ -64,7 +65,7 @@ public class RuleImporter implements Closeable{
             } else {
                 throw new VersionMissedException("Backup version property missed");
             }
-        } catch (JsonParseException ex) {
+        } catch (RuntimeException ex) {
             // json syntax exception or json parse exception
             throw new BackupInvalidException(ex);
         }
@@ -96,6 +97,9 @@ public class RuleImporter implements Closeable{
             String codeKeyword = ruleObject.get(BackupConst.KEY_CODE_KEYWORD).getAsString();
             String codeRegex = ruleObject.get(BackupConst.KEY_CODE_REGEX).getAsString();
 
+            if (company.trim().isEmpty() || codeKeyword.trim().isEmpty() || !SmsCodeParser.isValidRegex(codeRegex)) {
+                throw new BackupInvalidException("Invalid rule fields or regular expression");
+            }
             return new SmsCodeRule(company, codeKeyword, codeRegex);
         } catch (Exception e) {
             throw new BackupInvalidException(e);

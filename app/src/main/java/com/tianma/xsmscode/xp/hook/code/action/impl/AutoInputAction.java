@@ -1,6 +1,7 @@
 package com.tianma.xsmscode.xp.hook.code.action.impl;
 
 import android.app.ActivityManager;
+import android.app.KeyguardManager;
 import android.content.ContentResolver;
 import android.content.Context;
 import android.database.Cursor;
@@ -8,6 +9,7 @@ import android.net.Uri;
 import android.os.Bundle;
 
 import com.tianma.xsmscode.common.utils.XLog;
+import com.tianma.xsmscode.common.utils.XSPUtils;
 import com.tianma.xsmscode.data.db.DBProvider;
 import com.tianma.xsmscode.data.db.entity.AppInfo;
 import com.tianma.xsmscode.data.db.entity.AppInfoDao;
@@ -18,8 +20,10 @@ import com.tianma.xsmscode.xp.hook.code.action.CallableAction;
 import com.tianma.xsmscode.xp.hook.code.helper.InputHelper;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
+import java.util.Set;
+import java.util.HashSet;
+import com.github.tianma8023.xposed.smscode.BuildConfig;
 
 import de.robv.android.xposed.XSharedPreferences;
 
@@ -34,11 +38,19 @@ public class AutoInputAction extends CallableAction {
 
     @Override
     public Bundle action() {
-        prepareAutoInputCode(mSmsMsg.getSmsCode());
+        xsp.reload();
+        if (XSPUtils.isEnabled(xsp) && XSPUtils.autoInputCodeEnabled(xsp)) {
+            prepareAutoInputCode(mSmsMsg.getSmsCode());
+        }
         return null;
     }
 
     private void prepareAutoInputCode(String code) {
+        KeyguardManager keyguard = (KeyguardManager) mPhoneContext.getSystemService(Context.KEYGUARD_SERVICE);
+        if (keyguard != null && keyguard.isKeyguardLocked()) {
+            XLog.d("Device locked, skip automatic input");
+            return;
+        }
         if (!autoInputBlockedHere()) {
             autoInputCode(code);
         }
@@ -93,36 +105,33 @@ public class AutoInputAction extends CallableAction {
             List<ActivityManager.RunningTaskInfo> runningTasks = getRunningTasks(mPhoneContext);
             String topPkgPrimary = null;
             if (runningTasks != null && runningTasks.size() > 0) {
-                topPkgPrimary = runningTasks.get(0).topActivity.getPackageName();
+                topPkgPrimary = runningTasks.get(0).topActivity == null ? null : runningTasks.get(0).topActivity.getPackageName();
                 XLog.d("topPackagePrimary: %s", topPkgPrimary);
             }
 
-            if (topPkgPrimary != null && blockedAppList.contains(topPkgPrimary)) {
-                return true;
-            }
+            if (topPkgPrimary != null) return blockedAppList.contains(topPkgPrimary);
 
-            // RunningAppProcess 判断当前的进程不是很准确，所以用作次要参考
             List<ActivityManager.RunningAppProcessInfo> appProcesses = getRunningAppProcesses(mPhoneContext);
-            if (appProcesses == null) {
-                return false;
-            }
-
-            String[] topPkgSecondary = appProcesses.get(0).pkgList;
-            String topProcessSecondary = appProcesses.get(0).processName;
-            XLog.d("topProcessSecondary: %s, topPackages: %s", topProcessSecondary, Arrays.toString(topPkgSecondary));
-
-            if (blockedAppList.contains(topProcessSecondary)) {
-                result = true;
-            } else {
-                for (String topPackage : topPkgSecondary) {
-                    if (blockedAppList.contains(topPackage)) {
-                        result = true;
-                        break;
+            Set<String> foregroundPackages = new HashSet<>();
+            if (appProcesses != null) {
+                for (ActivityManager.RunningAppProcessInfo process : appProcesses) {
+                    if (process.importance != ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND) continue;
+                    if (blockedAppList.contains(process.processName)) return true;
+                    if (process.pkgList != null) {
+                        for (String packageName : process.pkgList) {
+                            if (blockedAppList.contains(packageName)) return true;
+                            if (!packageName.equals(mPhoneContext.getPackageName())
+                                    && !packageName.equals(BuildConfig.APPLICATION_ID)
+                                    && !packageName.equals("com.android.systemui")) foregroundPackages.add(packageName);
+                        }
                     }
                 }
             }
+            // 已配置屏蔽名单却无法确认唯一前台应用时，不向未知输入框发送按键。
+            result = foregroundPackages.size() != 1;
         } catch (Throwable t) {
-            XLog.e("", t);
+            XLog.e("Cannot resolve auto-input target", t);
+            result = true;
         }
         return result;
     }

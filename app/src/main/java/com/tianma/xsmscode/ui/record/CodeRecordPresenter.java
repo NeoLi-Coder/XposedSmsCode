@@ -52,7 +52,7 @@ public class CodeRecordPresenter implements CodeRecordContract.Presenter {
                     mView.displayData(smsMsgList);
                     mView.stopRefresh();
                 }, throwable -> {
-                    // ignore
+                    mView.stopRefresh();
                     XLog.e("", throwable);
                 });
         mCompositeDisposable.add(disposable);

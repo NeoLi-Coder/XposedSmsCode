@@ -5,6 +5,7 @@ import android.os.Bundle;
 import android.text.TextUtils;
 
 import com.tianma.xsmscode.data.db.DBManager;
+import com.tianma.xsmscode.common.utils.SmsCodeParser;
 import com.tianma.xsmscode.data.db.entity.SmsCodeRule;
 import com.tianma.xsmscode.data.eventbus.Event;
 import com.tianma.xsmscode.data.eventbus.XEventBus;
@@ -145,7 +146,7 @@ public class RuleEditPresenter implements RuleEditContract.Presenter {
     private boolean checkValid(SmsCodeRule codeRule) {
         boolean companyValid = !TextUtils.isEmpty(codeRule.getCompany());
         boolean keywordValid = !TextUtils.isEmpty(codeRule.getCodeKeyword());
-        boolean codeRegexValid = !TextUtils.isEmpty(codeRule.getCodeRegex());
+        boolean codeRegexValid = SmsCodeParser.isValidRegex(codeRule.getCodeRegex());
 
         mView.showErrorInfo(companyValid, keywordValid, codeRegexValid);
         return companyValid && keywordValid && codeRegexValid;

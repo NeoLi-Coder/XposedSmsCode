@@ -238,7 +238,7 @@ public class RuleEditFragment extends DaggerFragment implements RuleEditContract
             setError(mKeywordEditText, R.string.rule_keyword_empty_hint);
         }
         if (!codeRegexValid) {
-            setError(mCodeRegexEditText, R.string.rule_code_regex_empty_hint);
+            setError(mCodeRegexEditText, R.string.invalid_regex_hint);
         }
     }
 

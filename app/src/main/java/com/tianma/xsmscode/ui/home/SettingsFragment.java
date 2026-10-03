@@ -14,6 +14,12 @@ import androidx.fragment.app.DialogFragment;
 import androidx.fragment.app.FragmentManager;
 import androidx.preference.EditTextPreference;
 import androidx.preference.Preference;
+import androidx.preference.PreferenceGroup;
+import androidx.preference.TwoStatePreference;
+import androidx.recyclerview.widget.RecyclerView;
+import android.graphics.Rect;
+import java.util.regex.Pattern;
+import java.util.regex.PatternSyntaxException;
 
 import com.afollestad.materialdialogs.MaterialDialog;
 import com.github.tianma8023.xposed.smscode.BuildConfig;
@@ -23,14 +29,11 @@ import com.tianma.xsmscode.common.constant.PrefConst;
 import com.tianma.xsmscode.common.preference.ResetEditPreference;
 import com.tianma.xsmscode.common.preference.ResetEditPreferenceDialogFragCompat;
 import com.tianma.xsmscode.common.utils.ModuleUtils;
-import com.tianma.xsmscode.common.utils.PackageUtils;
 import com.tianma.xsmscode.common.utils.SPUtils;
 import com.tianma.xsmscode.common.utils.SnackbarHelper;
 import com.tianma.xsmscode.common.utils.XLog;
-import com.tianma.xsmscode.data.db.entity.ApkVersion;
 import com.tianma.xsmscode.ui.app.base.BasePreferenceFragment;
 import com.tianma.xsmscode.ui.block.AppBlockActivity;
-import com.tianma.xsmscode.ui.record.CodeRecordActivity;
 import com.tianma.xsmscode.ui.rule.CodeRulesActivity;
 
 import java.util.Objects;
@@ -51,9 +54,6 @@ public class SettingsFragment extends BasePreferenceFragment implements
         HasAndroidInjector,
         SettingsContract.View {
 
-    static final String EXTRA_ACTION = "extra_action";
-    static final String ACTION_DONATE_BY_ALIPAY = "donate_by_alipay";
-
     private HomeActivity mActivity;
 
     @Inject
@@ -66,15 +66,7 @@ public class SettingsFragment extends BasePreferenceFragment implements
     }
 
     public static SettingsFragment newInstance() {
-        return newInstance(null);
-    }
-
-    public static SettingsFragment newInstance(String extraAction) {
-        SettingsFragment fragment = new SettingsFragment();
-        Bundle args = new Bundle();
-        args.putString(EXTRA_ACTION, extraAction);
-        fragment.setArguments(args);
-        return fragment;
+        return new SettingsFragment();
     }
 
     @Override
@@ -111,12 +103,13 @@ public class SettingsFragment extends BasePreferenceFragment implements
         // SMS code group
         EditTextPreference autoInputDelayPref = findPreference(PrefConst.KEY_AUTO_INPUT_CODE_DELAY);
         autoInputDelayPref.setOnBindEditTextListener(editText -> {
-            editText.setInputType(InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_FLAG_DECIMAL);
+            editText.setInputType(InputType.TYPE_CLASS_NUMBER);
             editText.setSelection(editText.getText().length());
         });
         showAutoInputDelaySummary(autoInputDelayPref, autoInputDelayPref.getText());
         autoInputDelayPref.setOnPreferenceChangeListener(this);
 
+        findPreference(PrefConst.KEY_SMSCODE_KEYWORDS).setOnPreferenceChangeListener(this);
         findPreference(PrefConst.KEY_APP_BLOCK_ENTRY).setOnPreferenceClickListener(this);
         // SMS code group end
 
@@ -141,11 +134,9 @@ public class SettingsFragment extends BasePreferenceFragment implements
         // about group
         // version info preference
         Preference versionPref = findPreference(PrefConst.KEY_VERSION);
-        versionPref.setOnPreferenceClickListener(this);
+        versionPref.setSelectable(false);
         showVersionInfo(versionPref);
-        findPreference(PrefConst.KEY_JOIN_QQ_GROUP).setOnPreferenceClickListener(this);
         findPreference(PrefConst.KEY_SOURCE_CODE).setOnPreferenceClickListener(this);
-        findPreference(PrefConst.KEY_DONATE_BY_ALIPAY).setOnPreferenceClickListener(this);
         findPreference(PrefConst.KEY_PRIVACY_POLICY).setOnPreferenceClickListener(this);
         // about group end
     }
@@ -154,8 +145,21 @@ public class SettingsFragment extends BasePreferenceFragment implements
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
         mActivity = (HomeActivity) requireActivity();
-
-        mPresenter.handleArguments(getArguments());
+        mPresenter.onAttach(mActivity, this);
+        setDivider(null);
+        int padding = (int) (16 * getResources().getDisplayMetrics().density);
+        getListView().setPadding(padding, 0, padding, padding);
+        getListView().setClipToPadding(false);
+        // 保留 Preference 的依赖和持久化机制，仅绘制分组卡片背景。
+        getListView().addItemDecoration(new RecyclerView.ItemDecoration() {
+            @Override public void getItemOffsets(@NonNull Rect outRect, @NonNull View child,
+                                                  @NonNull RecyclerView parent, @NonNull RecyclerView.State state) {
+                if (child.findViewById(android.R.id.widget_frame) != null) {
+                    child.setBackgroundResource(R.drawable.preference_row_background);
+                    outRect.bottom = (int) (4 * getResources().getDisplayMetrics().density);
+                }
+            }
+        });
     }
 
     @Override
@@ -164,11 +168,6 @@ public class SettingsFragment extends BasePreferenceFragment implements
         String preferencesName = getPreferenceManager().getSharedPreferencesName();
         mPresenter.setPreferenceWorldWritable(preferencesName);
         mPresenter.setInternalFilesWritable();
-    }
-
-    @Override
-    public void showAppAlreadyNewest() {
-        SnackbarHelper.makeLong(getListView(), R.string.app_already_newest).show();
     }
 
     @Override
@@ -181,18 +180,12 @@ public class SettingsFragment extends BasePreferenceFragment implements
             CodeRulesActivity.startToMe(mActivity);
         } else if (PrefConst.KEY_SMSCODE_TEST.equals(key)) {
             showSmsCodeTestDialog();
-        } else if (PrefConst.KEY_JOIN_QQ_GROUP.equals(key)) {
-            mPresenter.joinQQGroup();
         } else if (PrefConst.KEY_SOURCE_CODE.equals(key)) {
             mPresenter.showSourceProject();
-        } else if (PrefConst.KEY_DONATE_BY_ALIPAY.equals(key)) {
-            donateByAlipay();
         } else if (PrefConst.KEY_ENTRY_CODE_RECORDS.equals(key)) {
-            CodeRecordActivity.startToMe(mActivity);
+            mActivity.selectTab(R.id.tab_records);
         } else if (PrefConst.KEY_APP_BLOCK_ENTRY.equals(key)) {
             AppBlockActivity.startMe(mActivity);
-        } else if (PrefConst.KEY_VERSION.equals(key)) {
-            mPresenter.checkUpdate();
         } else if(PrefConst.KEY_PRIVACY_POLICY.equals(key)) {
             showPrivacyPolicy();
         } else {
@@ -206,16 +199,6 @@ public class SettingsFragment extends BasePreferenceFragment implements
         preference.setSummary(summary);
     }
 
-    private void donateByAlipay() {
-        new MaterialDialog.Builder(mActivity)
-                .title(R.string.dialog_donate_by_alipay_title)
-                .content(R.string.dialog_donate_by_alipay_content)
-                .positiveText(R.string.dialog_donate_confirm)
-                .onPositive((dialog, which) -> PackageUtils.startAlipayDonatePage(mActivity))
-                .negativeText(R.string.dialog_donate_cancel)
-                .show();
-    }
-
     @Override
     public boolean onPreferenceChange(Preference preference, Object newValue) {
         String key = preference.getKey();
@@ -223,6 +206,14 @@ public class SettingsFragment extends BasePreferenceFragment implements
             mPresenter.hideOrShowLauncherIcon((Boolean) newValue);
         } else if (PrefConst.KEY_VERBOSE_LOG_MODE.equals(key)) {
             onVerboseLogModeSwitched((Boolean) newValue);
+        } else if (PrefConst.KEY_SMSCODE_KEYWORDS.equals(key)) {
+            try {
+                if (TextUtils.isEmpty((String) newValue)) throw new PatternSyntaxException("empty", "", 0);
+                Pattern.compile((String) newValue);
+            } catch (PatternSyntaxException e) {
+                SnackbarHelper.makeLong(getListView(), R.string.invalid_regex_hint).show();
+                return false;
+            }
         } else if(PrefConst.KEY_AUTO_INPUT_CODE_DELAY.equals(key)) {
             return onAutoInputDelayPrefChanged(preference, newValue);
         } else {
@@ -270,12 +261,6 @@ public class SettingsFragment extends BasePreferenceFragment implements
     }
 
     @Override
-    public void showGetAlipayPacketDialog() {
-        scrollToPreference(PrefConst.KEY_DONATE_BY_ALIPAY);
-        donateByAlipay();
-    }
-
-    @Override
     public void showSmsCodeTestResult(String code) {
         String text = TextUtils.isEmpty(code) ? getString(R.string.cannot_parse_smscode)
                 : getString(R.string.current_sms_code, code);
@@ -283,45 +268,45 @@ public class SettingsFragment extends BasePreferenceFragment implements
     }
 
     @Override
-    public void showCheckError(Throwable t) {
-        SnackbarHelper.makeShort(getListView(), R.string.check_update_failed).show();
-    }
-
-    @Override
-    public void showUpdateDialog(ApkVersion latestVersion) {
-        new MaterialDialog.Builder(mActivity)
-                .title(R.string.new_version_found)
-                .content(latestVersion.getVersionInfo())
-                .positiveText(R.string.update_from_coolapk)
-                .onPositive((dialog, which) -> mPresenter.updateFromCoolApk())
-                .negativeText(R.string.update_from_github)
-                .onNegative((dialog, which) -> mPresenter.updateFromGithub())
-                .show();
-    }
-
-    @Override
     public void showPrivacyPolicy() {
-        // 隐私政策
-        new MaterialDialog.Builder(mActivity)
-                .title(R.string.privacy_dialog_title)
-                .content(R.string.privacy_dialog_content)
-                .positiveText(R.string.privacy_dialog_confirm)
-                .onPositive((dialog, which) -> {
-                    SPUtils.setPrivacyPolicyAccepted(mActivity, true);
-                })
-                .cancelable(false)
-                .canceledOnTouchOutside(false)
-                .negativeText(R.string.privacy_dialog_cancel)
-                .onNegative((dialog, which) -> {
-                    SPUtils.setPrivacyPolicyAccepted(mActivity, false);
-                    mActivity.finish();
-                })
-                .show();
+        mActivity.showPrivacyPolicy();
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        refreshSwitches(getPreferenceScreen());
+    }
+
+    private void refreshSwitches(PreferenceGroup group) {
+        for (int i = 0; i < group.getPreferenceCount(); i++) {
+            Preference preference = group.getPreference(i);
+            if (preference instanceof TwoStatePreference) {
+                TwoStatePreference control = (TwoStatePreference) preference;
+                control.setChecked(getPreferenceManager().getSharedPreferences()
+                        .getBoolean(control.getKey(), control.isChecked()));
+            } else if (preference instanceof PreferenceGroup) {
+                refreshSwitches((PreferenceGroup) preference);
+            }
+        }
+    }
+
+    @Override
+    public void onDestroyView() {
+        mPresenter.onDetach();
+        super.onDestroyView();
     }
 
     private boolean onAutoInputDelayPrefChanged(Preference preference, Object newValue) {
         if (newValue instanceof String) {
             String value = (String) newValue;
+            try {
+                long seconds = Long.parseLong(value);
+                if (seconds < 0 || seconds > Long.MAX_VALUE / 1000) throw new NumberFormatException();
+            } catch (NumberFormatException e) {
+                SnackbarHelper.makeLong(getListView(), R.string.invalid_delay_hint).show();
+                return false;
+            }
             showAutoInputDelaySummary(preference, value);
             return true;
         } else {

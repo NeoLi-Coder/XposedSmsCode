@@ -1,23 +1,14 @@
 package com.tianma.xsmscode.ui.home;
 
-import static com.tianma.xsmscode.ui.home.SettingsFragment.ACTION_DONATE_BY_ALIPAY;
-import static com.tianma.xsmscode.ui.home.SettingsFragment.EXTRA_ACTION;
-
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.pm.PackageManager;
-import android.os.Bundle;
 import android.text.TextUtils;
 
-import com.github.tianma8023.xposed.smscode.BuildConfig;
 import com.tianma.xsmscode.common.constant.Const;
-import com.tianma.xsmscode.common.utils.PackageUtils;
-import com.tianma.xsmscode.common.utils.SPUtils;
 import com.tianma.xsmscode.common.utils.SmsCodeUtils;
 import com.tianma.xsmscode.common.utils.StorageUtils;
 import com.tianma.xsmscode.common.utils.Utils;
-import com.tianma.xsmscode.data.db.entity.ApkVersion;
-import com.tianma.xsmscode.data.repository.DataRepository;
 
 import java.io.File;
 
@@ -54,24 +45,6 @@ public class SettingsPresenter implements SettingsContract.Presenter {
         mView = null;
         if (mCompositeDisposable.size() > 0) {
             mCompositeDisposable.clear();
-        }
-    }
-
-    @Override
-    public void handleArguments(Bundle args) {
-        if (args == null) {
-            return;
-        }
-
-        if (!SPUtils.isPrivacyPolicyAccepted(mContext)) {
-            mView.showPrivacyPolicy();
-            return;
-        }
-
-        String extraAction = args.getString(EXTRA_ACTION);
-        if (ACTION_DONATE_BY_ALIPAY.equals(extraAction)) {
-            args.remove(EXTRA_ACTION);
-            mView.showGetAlipayPacketDialog();
         }
     }
 
@@ -116,11 +89,6 @@ public class SettingsPresenter implements SettingsContract.Presenter {
     }
 
     @Override
-    public void joinQQGroup() {
-        PackageUtils.joinQQGroup(mContext);
-    }
-
-    @Override
     public void showSourceProject() {
         Utils.showWebPage(mContext, Const.PROJECT_SOURCE_CODE_URL);
     }
@@ -132,31 +100,4 @@ public class SettingsPresenter implements SettingsContract.Presenter {
         StorageUtils.setFileWorldWritable(StorageUtils.getFilesDir(), 1);
     }
 
-    @Override
-    public void checkUpdate() {
-        Disposable disposable = DataRepository.getLatestVersion()
-                .subscribeOn(Schedulers.io())
-                .observeOn(AndroidSchedulers.mainThread())
-                .subscribe(latestVersion -> {
-                            ApkVersion currentVersion = new ApkVersion(BuildConfig.VERSION_NAME, "");
-                            if (currentVersion.compareTo(latestVersion) < 0) {
-                                mView.showUpdateDialog(latestVersion);
-                            } else {
-                                mView.showAppAlreadyNewest();
-                            }
-                        },
-                        throwable -> mView.showCheckError(throwable)
-                );
-        mCompositeDisposable.add(disposable);
-    }
-
-    @Override
-    public void updateFromGithub() {
-        Utils.showWebPage(mContext, Const.PROJECT_GITHUB_LATEST_RELEASE_URL);
-    }
-
-    @Override
-    public void updateFromCoolApk() {
-        PackageUtils.showAppDetailsInCoolApk(mContext);
-    }
 }

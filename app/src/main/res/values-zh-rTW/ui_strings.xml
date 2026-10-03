@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="tab_overview_title">概覽</string>
+    <string name="tab_records_title">記錄</string>
+    <string name="tab_settings_title">設定</string>
+    <string name="overview_active_hint">框架已啟用模組，簡訊處理依功能開關執行。</string>
+    <string name="overview_inactive_hint">點擊開啟 LSPosed 或查看啟用方法。啟用本模組、勾選作用域後重新啟動裝置。</string>
+    <string name="overview_quick_controls">常用功能</string>
+    <string name="overview_shortcuts">管理與設定</string>
+    <string name="overview_app_info">應用程式與裝置</string>
+    <string name="overview_version_format">版本 %1$s（%2$d）</string>
+    <string name="overview_device_format">%1$s %2$s · Android %3$s</string>
+    <string name="record_search_hint">搜索寄件者、驗證碼或簡訊</string>
+    <string name="record_empty_hint">還沒有驗證碼記錄
+辨識成功的簡訊會顯示在這裡</string>
+    <string name="record_no_results">沒有符合的記錄</string>
+    <string name="invalid_regex_hint">正規表示式無效，請檢查後重試</string>
+    <string name="invalid_delay_hint">請輸入非負整數秒數</string>
+    <string name="record_details_format">寄件者：%1$s\n時間：%2$s\n\n%3$s</string>
+    <string name="module_manager_open_failed">無法直接開啟 LSPosed。請透過桌面捷徑開啟，或下拉通知列點擊「LSPosed 已載入」通知。\n\n進入 %1$s，開啟「啟用模組」、勾選建議作用域，然後重新啟動裝置。</string>
+    <string name="module_activation_title">啟用模組</string>
+</resources>

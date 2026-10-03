@@ -8,7 +8,7 @@
         <intent
             android:action="android.intent.action.VIEW"
             android:targetClass="com.tianma.xsmscode.ui.record.CodeRecordActivity"
-            android:targetPackage="com.github.tianma8023.xposed.smscode"/>
+            android:targetPackage="com.xsmscode.standalone"/>
         <categories
             android:name="android.shortcut.conversation"/>
     </shortcut>
@@ -21,22 +21,7 @@
         <intent
             android:action="android.intent.action.VIEW"
             android:targetClass="com.tianma.xsmscode.ui.rule.CodeRulesActivity"
-            android:targetPackage="com.github.tianma8023.xposed.smscode"/>
-        <categories
-            android:name="android.shortcut.conversation"/>
-    </shortcut>
-
-    <shortcut
-        android:enabled="true"
-        android:icon="@drawable/ic_alipay_red_packet"
-        android:shortcutId="donate_by_alipay"
-        android:shortcutShortLabel="@string/pref_donate_by_alipay_title">
-        <intent
-            android:action="android.intent.action.VIEW"
-            android:targetClass="com.tianma.xsmscode.ui.home.HomeActivity"
-            android:targetPackage="com.github.tianma8023.xposed.smscode">
-            <extra android:name="extra_action" android:value="donate_by_alipay"/>
-        </intent>
+            android:targetPackage="com.xsmscode.standalone"/>
         <categories
             android:name="android.shortcut.conversation"/>
     </shortcut>

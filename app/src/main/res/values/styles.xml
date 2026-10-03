@@ -2,12 +2,20 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
 
     <style name="AppNoActionBarTheme" parent="Theme.Cyanea.Light.NoActionBar">
+        <item name="colorSurface">?android:attr/colorBackground</item>
+        <item name="colorOnSurface">?android:attr/textColorPrimary</item>
+        <item name="colorPrimaryVariant">?attr/colorPrimaryDark</item>
+        <item name="isMaterialTheme">true</item>
         <item name="preferenceIconColor">?android:attr/textColorPrimary</item>
         <item name="myMenuIconColor">?attr/menuIconColor</item>
         <item name="preferenceTheme">@style/MyPreferenceStyle</item>
     </style>
 
     <style name="AppActionBarTheme" parent="Theme.Cyanea.Light">
+        <item name="colorSurface">?android:attr/colorBackground</item>
+        <item name="colorOnSurface">?android:attr/textColorPrimary</item>
+        <item name="colorPrimaryVariant">?attr/colorPrimaryDark</item>
+        <item name="isMaterialTheme">true</item>
         <item name="preferenceIconColor">?android:attr/textColorPrimary</item>
         <item name="myMenuIconColor">?attr/menuIconColor</item>
         <item name="preferenceTheme">@style/MyPreferenceStyle</item>

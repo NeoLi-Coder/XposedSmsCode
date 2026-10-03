@@ -3,6 +3,8 @@ package com.tianma.xsmscode.xp.hook.code.helper;
 import android.annotation.SuppressLint;
 import android.hardware.input.InputManager;
 import android.os.SystemClock;
+import android.os.Binder;
+import android.view.InputEvent;
 import android.view.InputDevice;
 import android.view.KeyCharacterMap;
 import android.view.KeyEvent;
@@ -24,6 +26,7 @@ public class InputHelper {
      * @throws Throwable throwable throws if the caller has no android.permission.INJECT_EVENTS permission
      */
     public static void sendText(String text) throws Throwable {
+        if (text == null || text.isEmpty()) return;
         int source = InputDevice.SOURCE_KEYBOARD;
 
         StringBuilder sb = new StringBuilder(text);
@@ -46,11 +49,15 @@ public class InputHelper {
 
         KeyCharacterMap kcm = KeyCharacterMap.load(KeyCharacterMap.VIRTUAL_KEYBOARD);
         KeyEvent[] events = kcm.getEvents(chars);
-        for (KeyEvent keyEvent : events) {
-            if (source != keyEvent.getSource()) {
+        if (events == null) throw new IllegalArgumentException("Code cannot be represented as key events");
+        long identity = Binder.clearCallingIdentity();
+        try {
+            for (KeyEvent keyEvent : events) {
                 keyEvent.setSource(source);
+                injectKeyEvent(keyEvent);
             }
-            injectKeyEvent(keyEvent);
+        } finally {
+            Binder.restoreCallingIdentity(identity);
         }
     }
 
@@ -77,10 +84,11 @@ public class InputHelper {
         int INJECT_INPUT_EVENT_MODE_WAIT_FOR_FINISH =
                 XposedHelpers.getStaticIntField(InputManager.class, "INJECT_INPUT_EVENT_MODE_WAIT_FOR_FINISH");
 
-        Class<?>[] paramTypes = {KeyEvent.class, int.class,};
+        Class<?>[] paramTypes = {InputEvent.class, int.class,};
         Object[] args = {keyEvent, INJECT_INPUT_EVENT_MODE_WAIT_FOR_FINISH,};
 
-        XposedHelpers.callMethod(inputManager, "injectInputEvent", paramTypes, args);
+        Object result = XposedHelpers.callMethod(inputManager, "injectInputEvent", paramTypes, args);
+        if (!Boolean.TRUE.equals(result)) throw new IllegalStateException("Input event injection rejected");
     }
 
 }

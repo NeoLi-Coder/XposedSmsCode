@@ -44,7 +44,7 @@ public class XSPUtils {
         } catch (Exception e) {
             delay = Long.parseLong(PrefConst.KEY_AUTO_INPUT_CODE_DELAY_DEFAULT);
         }
-        return delay;
+        return Math.min(Math.max(0, delay), Long.MAX_VALUE / 1000);
     }
 
     /**

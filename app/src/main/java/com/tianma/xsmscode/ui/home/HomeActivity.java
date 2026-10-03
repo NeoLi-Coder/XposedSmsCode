@@ -2,201 +2,227 @@ package com.tianma.xsmscode.ui.home;
 
 import android.annotation.SuppressLint;
 import android.content.Context;
-import android.content.Intent;
 import android.os.Bundle;
-import android.os.Handler;
-import android.os.Looper;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.View;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.ActionBar;
 import androidx.appcompat.widget.Toolbar;
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentManager;
+import androidx.fragment.app.FragmentTransaction;
+import androidx.lifecycle.Lifecycle;
+import androidx.core.graphics.ColorUtils;
+import android.util.TypedValue;
 
 import com.afollestad.materialdialogs.MaterialDialog;
 import com.github.tianma8023.xposed.smscode.R;
+import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.tianma.xsmscode.common.constant.PrefConst;
-import com.tianma.xsmscode.common.utils.ModuleUtils;
+import com.tianma.xsmscode.common.fragment.backpress.BackPressEventDispatchHelper;
 import com.tianma.xsmscode.common.utils.PackageUtils;
+import com.tianma.xsmscode.common.utils.SPUtils;
+import com.tianma.xsmscode.common.utils.StorageUtils;
 import com.tianma.xsmscode.ui.app.base.BaseActivity;
 import com.tianma.xsmscode.ui.faq.FaqFragment;
+import com.tianma.xsmscode.ui.record.CodeRecordFragment;
 
-import butterknife.BindView;
-import butterknife.ButterKnife;
-
-/**
- * 主界面
- */
 public class HomeActivity extends BaseActivity {
-    @BindView(R.id.toolbar)
-    Toolbar mToolbar;
-
-    private static final String TAG_NESTED = "tag_nested";
-    private static final String TAG_FAQ = "tag_faq";
-
-    private Fragment mCurrentFragment;
-    private FragmentManager mFragmentManager;
+    private static final String KEY_TAB = "home_tab";
+    private Toolbar toolbar;
+    private int foregroundColor;
+    private BottomNavigationView navigation;
+    private int selectedTab = R.id.tab_overview;
+    private MaterialDialog privacyDialog;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-
         setContentView(R.layout.activity_home);
-        ButterKnife.bind(this);
-
+        toolbar = findViewById(R.id.toolbar);
+        navigation = findViewById(R.id.home_navigation);
+        setSupportActionBar(toolbar);
+        TypedValue background = new TypedValue();
+        TypedValue foreground = new TypedValue();
+        getTheme().resolveAttribute(android.R.attr.colorBackground, background, true);
+        getTheme().resolveAttribute(android.R.attr.textColorPrimary, foreground, true);
+        foregroundColor = foreground.resourceId != 0
+                ? androidx.core.content.ContextCompat.getColor(this, foreground.resourceId) : foreground.data;
+        findViewById(R.id.home_shell).setBackgroundColor(ColorUtils.blendARGB(background.data, foregroundColor, 0.035f));
         getExternalFilesDir("");
-
         shareXposedPreferences();
-
-        handleIntent(getIntent());
-
-        // setup toolbar
-        setupToolbar();
-
-        // check module activation status
-        checkModuleActivationStatus();
+        if (savedInstanceState != null) {
+            selectedTab = savedInstanceState.getInt(KEY_TAB, R.id.tab_overview);
+        }
+        navigation.setSelectedItemId(selectedTab);
+        navigation.setOnItemSelectedListener(item -> {
+            displayTab(item.getItemId());
+            return true;
+        });
+        // 恢复 FAQ 时保留 FragmentManager 已恢复的可见页面。
+        if (getSupportFragmentManager().getBackStackEntryCount() == 0) displayTab(selectedTab);
+        refreshChrome();
+        if (!SPUtils.isPrivacyPolicyAccepted(this)) {
+            showPrivacyPolicy();
+        }
     }
 
-    private void setupToolbar() {
-        setSupportActionBar(mToolbar);
-
-        refreshActionBar(getString(R.string.app_name));
+    public void selectTab(int tab) {
+        if (navigation.getSelectedItemId() == tab) displayTab(tab);
+        else navigation.setSelectedItemId(tab);
     }
 
-    private void handleIntent(Intent intent) {
-        String action = intent.getAction();
-        SettingsFragment settingsFragment = null;
-        if (Intent.ACTION_VIEW.equals(action)) {
-            String extraAction = intent.getStringExtra(SettingsFragment.EXTRA_ACTION);
-            if (SettingsFragment.ACTION_DONATE_BY_ALIPAY.equals(extraAction)) {
-                settingsFragment = SettingsFragment.newInstance(extraAction);
+    private void displayTab(int tab) {
+        FragmentManager manager = getSupportFragmentManager();
+        if (manager.isStateSaved()) return;
+        selectedTab = tab;
+        String tag = "home:" + tab;
+        Fragment target = manager.findFragmentByTag(tag);
+        FragmentTransaction transaction = manager.beginTransaction();
+        for (Fragment fragment : manager.getFragments()) {
+            if (!fragment.isHidden() && fragment != target) {
+                transaction.hide(fragment).setMaxLifecycle(fragment, Lifecycle.State.STARTED);
             }
         }
-
-        if (settingsFragment == null) {
-            settingsFragment = SettingsFragment.newInstance();
-        }
-
-        mFragmentManager = getSupportFragmentManager();
-        mFragmentManager.beginTransaction()
-                .replace(R.id.home_content, settingsFragment)
-                .commit();
-        mCurrentFragment = settingsFragment;
-    }
-
-    private void refreshActionBar(String title) {
-        ActionBar actionBar = getSupportActionBar();
-        if (actionBar != null) {
-            actionBar.setTitle(title);
-            actionBar.setHomeButtonEnabled(true);
-            if (mCurrentFragment instanceof SettingsFragment) {
-                actionBar.setDisplayHomeAsUpEnabled(false);
+        if (target == null) {
+            if (tab == R.id.tab_records) {
+                target = CodeRecordFragment.newInstance();
+            } else if (tab == R.id.tab_settings) {
+                target = SettingsFragment.newInstance();
             } else {
-                actionBar.setDisplayHomeAsUpEnabled(true);
+                target = new OverviewFragment();
             }
+            transaction.add(R.id.home_content, target, tag);
+        } else {
+            transaction.show(target);
         }
+        transaction.setMaxLifecycle(target, Lifecycle.State.RESUMED)
+                .setPrimaryNavigationFragment(target).commitNow();
+        refreshChrome();
+        invalidateOptionsMenu();
+    }
+
+    private void refreshChrome() {
+        boolean faq = getSupportFragmentManager().getBackStackEntryCount() > 0;
+        navigation.setVisibility(faq ? View.GONE : View.VISIBLE);
+        toolbar.setTitle(faq ? R.string.action_home_faq_title : selectedTab == R.id.tab_records
+                ? R.string.smscode_records : selectedTab == R.id.tab_settings
+                ? R.string.tab_settings_title : R.string.app_name);
+        ActionBar actionBar = getSupportActionBar();
+        if (actionBar != null) actionBar.setDisplayHomeAsUpEnabled(faq);
+        tintToolbarIcons();
+    }
+
+    @Override
+    protected void onSaveInstanceState(@NonNull Bundle outState) {
+        outState.putInt(KEY_TAB, selectedTab);
+        super.onSaveInstanceState(outState);
     }
 
     @Override
     public void onBackPressed() {
-        if (mFragmentManager.getBackStackEntryCount() == 0) {
-            super.onBackPressed();
-        } else {
-            mFragmentManager.popBackStackImmediate();
-            mCurrentFragment = mFragmentManager.findFragmentById(R.id.home_content);
-            refreshActionBar(getString(R.string.app_name));
+        FragmentManager manager = getSupportFragmentManager();
+        if (manager.getBackStackEntryCount() > 0) {
+            manager.popBackStackImmediate();
+            refreshChrome();
+            invalidateOptionsMenu();
+        } else if (!BackPressEventDispatchHelper.dispatchBackPressedEvent(this)) {
+            if (selectedTab != R.id.tab_overview) selectTab(R.id.tab_overview);
+            else super.onBackPressed();
         }
-        invalidateOptionsMenu();
-    }
-
-    @Override
-    public boolean onOptionsItemSelected(@NonNull MenuItem item) {
-        switch (item.getItemId()) {
-            case R.id.action_home_faq:
-                onFAQSelected();
-                return true;
-            case R.id.action_taichi_users_notice:
-                onTaichiUsersNoticeSelected();
-                return true;
-            case R.id.action_edxposed_users_notice:
-                onEdxposedUsersNoticeSelected();
-                return true;
-        }
-        return super.onOptionsItemSelected(item);
     }
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
-        getMenuInflater().inflate(R.menu.menu_home, menu);
-        MenuItem faqItem = menu.findItem(R.id.action_home_faq);
-        if (mCurrentFragment instanceof FaqFragment) {
-            faqItem.setVisible(false);
-        } else {
-            faqItem.setVisible(true);
+        if (getSupportFragmentManager().getBackStackEntryCount() == 0) {
+            getMenuInflater().inflate(R.menu.menu_home, menu);
         }
         return true;
     }
 
-    private void onFAQSelected() {
-        FaqFragment faqFragment = FaqFragment.newInstance();
-        mFragmentManager
-                .beginTransaction()
-                .replace(R.id.home_content, faqFragment, TAG_FAQ)
-                .addToBackStack(TAG_FAQ)
-                .commit();
-        mCurrentFragment = faqFragment;
-        refreshActionBar(getString(R.string.action_home_faq_title));
-        invalidateOptionsMenu();
+    @Override
+    public boolean onPrepareOptionsMenu(Menu menu) {
+        super.onPrepareOptionsMenu(menu);
+        for (int i = 0; i < menu.size(); i++) {
+            android.graphics.drawable.Drawable icon = menu.getItem(i).getIcon();
+            if (icon != null) icon.mutate().setTint(foregroundColor);
+        }
+        tintToolbarIcons();
+        return true;
+    }
+
+    private void tintToolbarIcons() {
+        toolbar.setTitleTextColor(foregroundColor);
+        if (toolbar.getNavigationIcon() != null) toolbar.getNavigationIcon().mutate().setTint(foregroundColor);
+        if (toolbar.getOverflowIcon() != null) toolbar.getOverflowIcon().mutate().setTint(foregroundColor);
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(@NonNull MenuItem item) {
+        if (item.getItemId() == R.id.action_home_faq) {
+            Fragment current = getSupportFragmentManager().getPrimaryNavigationFragment();
+            getSupportFragmentManager().beginTransaction().hide(current)
+                    .add(R.id.home_content, FaqFragment.newInstance(), "faq")
+                    .addToBackStack("faq").commit();
+            getSupportFragmentManager().executePendingTransactions();
+            refreshChrome();
+            invalidateOptionsMenu();
+            return true;
+        } else if (item.getItemId() == R.id.action_taichi_users_notice) {
+            onTaichiUsersNoticeSelected();
+            return true;
+        } else if (item.getItemId() == R.id.action_edxposed_users_notice) {
+            onEdxposedUsersNoticeSelected();
+            return true;
+        }
+        return super.onOptionsItemSelected(item);
     }
 
     void onTaichiUsersNoticeSelected() {
-        new MaterialDialog.Builder(this)
-                .title(R.string.taichi_users_notice)
+        new MaterialDialog.Builder(this).title(R.string.taichi_users_notice)
                 .content(R.string.taichi_users_notice_content)
                 .negativeText(R.string.add_apps_in_taichi)
-                .onNegative((dialog, which) -> PackageUtils.startAddAppsInTaiChi(HomeActivity.this))
+                .onNegative((dialog, which) -> PackageUtils.startAddAppsInTaiChi(this))
                 .positiveText(R.string.check_module_in_taichi)
-                .onPositive((dialog, which) -> PackageUtils.startCheckModuleInTaiChi(HomeActivity.this))
-                .show();
+                .onPositive((dialog, which) -> PackageUtils.startCheckModuleInTaiChi(this)).show();
     }
 
     void onEdxposedUsersNoticeSelected() {
-        new MaterialDialog.Builder(this)
-                .title(R.string.edxposed_users_notice)
-                .content(R.string.edxposed_users_notice_content)
-                .positiveText(R.string.i_know)
-                .show();
+        new MaterialDialog.Builder(this).title(R.string.edxposed_users_notice)
+                .content(R.string.edxposed_users_notice_content).positiveText(R.string.i_know).show();
     }
 
-    private void checkModuleActivationStatus() {
-        Handler handler = new Handler(Looper.getMainLooper());
-        handler.postDelayed(() -> {
-            if (isFinishing()) {
-                return;
-            }
+    void showPrivacyPolicy() {
+        if (privacyDialog != null && privacyDialog.isShowing()) return;
+        privacyDialog = new MaterialDialog.Builder(this).title(R.string.privacy_dialog_title)
+                .content(R.string.privacy_dialog_content).positiveText(R.string.privacy_dialog_confirm)
+                .onPositive((dialog, which) -> SPUtils.setPrivacyPolicyAccepted(this, true))
+                .negativeText(R.string.privacy_dialog_cancel)
+                .onNegative((dialog, which) -> { SPUtils.setPrivacyPolicyAccepted(this, false); finish(); })
+                .cancelable(false).canceledOnTouchOutside(false).show();
+    }
 
-            String format = "%s(%s)";
-            String appName = getString(R.string.app_name);
-            final String appTitle;
-            if (ModuleUtils.isModuleEnabled()) {
-                appTitle = String.format(format, appName, getString(R.string.module_status_active));
-            } else {
-                appTitle = String.format(format, appName, getString(R.string.module_status_inactive));
-            }
-            mToolbar.setTitle(appTitle);
-        }, 1000L);
+    @Override
+    protected void onPause() {
+        super.onPause();
+        StorageUtils.setFileWorldWritable(StorageUtils.getSharedPreferencesFile(this, PrefConst.PREF_NAME), 2);
+        StorageUtils.setFileWorldWritable(StorageUtils.getFilesDir(), 1);
+    }
+
+    @Override
+    protected void onDestroy() {
+        if (privacyDialog != null) privacyDialog.dismiss();
+        super.onDestroy();
     }
 
     @SuppressLint("WorldReadableFiles")
     private void shareXposedPreferences() {
         try {
-            // EdXposed or LSPosed new XSharedPreferences:  https://github.com/LSPosed/LSPosed/wiki/New-XSharedPreferences
             getSharedPreferences(PrefConst.PREF_NAME, Context.MODE_WORLD_READABLE);
-        } catch (SecurityException exception) {
-            // 如果模块没有被 EdXposed 或者 LSPosed 激活，就会走到这里来
-            // ignore
+        } catch (SecurityException ignored) {
+            // 框架未启用时不支持跨进程首选项；界面仍应正常打开。
         }
     }
 }

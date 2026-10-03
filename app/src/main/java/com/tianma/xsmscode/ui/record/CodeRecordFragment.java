@@ -25,7 +25,9 @@ import javax.inject.Inject;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.recyclerview.widget.DividerItemDecoration;
+import androidx.appcompat.widget.SearchView;
+import java.text.DateFormat;
+import java.util.Date;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
@@ -79,7 +81,8 @@ public class CodeRecordFragment extends DaggerBackPressFragment implements CodeR
     public void onActivityCreated(@Nullable Bundle savedInstanceState) {
         super.onActivityCreated(savedInstanceState);
 
-        mActivity = getActivity();
+        mActivity = requireActivity();
+        mPresenter.onAttach(mActivity, this);
 
         List<RecordItem> records = new ArrayList<>();
 
@@ -111,8 +114,19 @@ public class CodeRecordFragment extends DaggerBackPressFragment implements CodeR
         });
 
         mRecyclerView.setLayoutManager(new LinearLayoutManager(mActivity));
+        mAdapter.setStateRestorationPolicy(RecyclerView.Adapter.StateRestorationPolicy.PREVENT_WHEN_EMPTY);
         mRecyclerView.setAdapter(mAdapter);
-        mRecyclerView.addItemDecoration(new DividerItemDecoration(mActivity, DividerItemDecoration.VERTICAL));
+        SearchView search = requireView().findViewById(R.id.record_search);
+        search.setIconifiedByDefault(false);
+        search.setQueryHint(getString(R.string.record_search_hint));
+        search.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
+            @Override public boolean onQueryTextSubmit(String query) { search.clearFocus(); return true; }
+            @Override public boolean onQueryTextChange(String query) {
+                mAdapter.setQuery(query);
+                refreshActionBarByMode();
+                return true;
+            }
+        });
     }
 
     @Override
@@ -130,6 +144,8 @@ public class CodeRecordFragment extends DaggerBackPressFragment implements CodeR
             mEmptyView.setVisibility(View.GONE);
         } else {
             mEmptyView.setVisibility(View.VISIBLE);
+            ((android.widget.TextView) mEmptyView).setText(mAdapter.hasQuery()
+                    ? R.string.record_no_results : R.string.record_empty_hint);
         }
     }
 
@@ -150,7 +166,8 @@ public class CodeRecordFragment extends DaggerBackPressFragment implements CodeR
         SmsMsg smsMsg = recordItem.getSmsMsg();
         new MaterialDialog.Builder(mActivity)
                 .title(R.string.message_details)
-                .content(smsMsg.getBody())
+                .content(getString(R.string.record_details_format, smsMsg.getSender(),
+                        DateFormat.getDateTimeInstance().format(new Date(smsMsg.getDate())), smsMsg.getBody()))
                 .positiveText(R.string.copy_smscode)
                 .onPositive((dialog, which) -> copySmsCode(recordItem))
                 .negativeText(R.string.cancel)
@@ -231,8 +248,8 @@ public class CodeRecordFragment extends DaggerBackPressFragment implements CodeR
                     public void onDismissed(Snackbar transientBottomBar, int event) {
                         if (event != DISMISS_EVENT_ACTION) {
                             mPresenter.removeSmsMsg(itemsToRemove);
-                            mSwipeRefreshLayout.setEnabled(true);
                         }
+                        if (getView() != null) mSwipeRefreshLayout.setEnabled(true);
                     }
                 })
                 .setAction(R.string.revoke, v -> mAdapter.addItems(itemsToRemove))
@@ -267,8 +284,14 @@ public class CodeRecordFragment extends DaggerBackPressFragment implements CodeR
     }
 
     @Override
+    public void onDestroyView() {
+        mPresenter.onDetach();
+        super.onDestroyView();
+    }
+
+    @Override
     public void displayData(List<SmsMsg> smsMsgList) {
-        mAdapter.addItems(smsMsgList);
+        mAdapter.replaceItems(smsMsgList);
     }
 
 }

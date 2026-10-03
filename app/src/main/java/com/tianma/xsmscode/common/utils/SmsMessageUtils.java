@@ -21,7 +21,9 @@ public class SmsMessageUtils {
         } else {
             StringBuilder sb = new StringBuilder(SMS_CHARACTER_LIMIT * messageParts.length);
             for (SmsMessage messagePart : messageParts) {
-                sb.append(messagePart.getDisplayMessageBody());
+                String body = messagePart.getDisplayMessageBody();
+                if (body == null) return null;
+                sb.append(body);
             }
             return sb.toString();
         }

@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="tab_overview_title">Overview</string>
+    <string name="tab_records_title">Records</string>
+    <string name="tab_settings_title">Settings</string>
+    <string name="overview_active_hint">Module enabled in the framework. SMS processing follows your settings.</string>
+    <string name="overview_inactive_hint">Tap to open LSPosed or view activation instructions. Enable this module, check its scope, then restart the device.</string>
+    <string name="overview_quick_controls">Quick controls</string>
+    <string name="overview_shortcuts">Manage</string>
+    <string name="overview_app_info">App and device</string>
+    <string name="overview_version_format">Version %1$s (%2$d)</string>
+    <string name="overview_device_format">%1$s %2$s · Android %3$s</string>
+    <string name="record_search_hint">Search sender, code or message</string>
+    <string name="record_empty_hint">No verification codes yet
+Recognized messages will appear here</string>
+    <string name="record_no_results">No matching records</string>
+    <string name="invalid_regex_hint">Invalid regular expression</string>
+    <string name="invalid_delay_hint">Enter a non-negative whole number of seconds</string>
+    <string name="record_details_format">Sender: %1$s\nTime: %2$s\n\n%3$s</string>
+    <string name="module_manager_open_failed">Unable to open LSPosed directly. Open its shortcut, or pull down notifications and tap the LSPosed loaded notification.\n\nSelect %1$s, enable the module, check the recommended scope, then restart the device.</string>
+    <string name="module_activation_title">Activate module</string>
+</resources>

@@ -47,7 +47,7 @@
         </activity>
 
         <activity-alias
-            android:name=".HomeActivityAlias"
+            android:name="${applicationId}.HomeActivityAlias"
             android:enabled="true"
             android:exported="true"
             android:targetActivity="com.tianma.xsmscode.ui.home.HomeActivity">

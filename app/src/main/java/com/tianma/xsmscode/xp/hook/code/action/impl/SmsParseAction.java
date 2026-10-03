@@ -43,6 +43,7 @@ public class SmsParseAction extends CallableAction {
     private Bundle parseSmsMsg() {
         mSmsMsg = SmsMsg.fromIntent(mSmsIntent);
 
+        if (mSmsMsg == null) return null;
         String sender = mSmsMsg.getSender();
         String msgBody = mSmsMsg.getBody();
         if (BuildConfig.DEBUG) {
@@ -73,18 +74,15 @@ public class SmsParseAction extends CallableAction {
         // 去除重复短信
         boolean duplicated = false;
         if (XSPUtils.deduplicateSms(xsp)) {
-            SmsMsg prevSmsMsg = EntityStoreManager.loadEntityFromFile(EntityType.PREV_SMS_MSG, SmsMsg.class);
-            if (prevSmsMsg != null) {
-                if (Math.abs(timestamp - prevSmsMsg.getDate()) <= 15000) {
-                    if ((sender.equals(prevSmsMsg.getSender()) && smsCode.equals(prevSmsMsg.getSmsCode()))
-                            || msgBody.equals(prevSmsMsg.getBody())) {
-                        duplicated = true;
-                        XLog.d("Duplicated message, ignore");
-                    }
+            synchronized (SmsParseAction.class) {
+                SmsMsg prevSmsMsg = EntityStoreManager.loadEntityFromFile(EntityType.PREV_SMS_MSG, SmsMsg.class);
+                if (prevSmsMsg != null && Math.abs(timestamp - prevSmsMsg.getDate()) <= 15000) {
+                    duplicated = (sender.equals(prevSmsMsg.getSender()) && smsCode.equals(prevSmsMsg.getSmsCode()))
+                            || msgBody.equals(prevSmsMsg.getBody());
                 }
+                if (!duplicated) EntityStoreManager.storeEntityToFile(EntityType.PREV_SMS_MSG, mSmsMsg);
+                else XLog.d("Duplicated message, ignore");
             }
-            // 保存当前验证码记录 Action
-            EntityStoreManager.storeEntityToFile(EntityType.PREV_SMS_MSG, mSmsMsg);
         }
 
         bundle.putBoolean(SMS_DUPLICATED, duplicated);

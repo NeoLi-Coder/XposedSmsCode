@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.core.widget.NestedScrollView xmlns:android="http://schemas.android.com/apk/res/android" android:layout_width="match_parent" android:layout_height="match_parent" android:fillViewport="true">
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="16dp">
+        <androidx.cardview.widget.CardView style="@style/UiCard" android:layout_width="match_parent" android:layout_height="wrap_content">
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="20dp">
+                <LinearLayout android:id="@+id/overview_activation" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:minHeight="48dp" android:background="?attr/selectableItemBackground">
+                    <TextView android:id="@+id/overview_status" android:layout_width="match_parent" android:layout_height="wrap_content" android:textSize="28sp" android:fontFamily="sans-serif-medium" android:textColor="?attr/colorAccent" />
+                    <TextView android:id="@+id/overview_status_hint" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:textSize="14sp" android:textColor="?android:attr/textColorSecondary" />
+                </LinearLayout>
+                <androidx.appcompat.widget.SwitchCompat style="@style/UiControl" android:id="@+id/overview_enable" android:text="@string/pref_enable_title" />
+            </LinearLayout>
+        </androidx.cardview.widget.CardView>
+        <androidx.cardview.widget.CardView style="@style/UiCard" android:layout_width="match_parent" android:layout_height="wrap_content">
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="20dp">
+                <TextView style="@style/UiSectionTitle" android:text="@string/overview_quick_controls" />
+                <androidx.appcompat.widget.SwitchCompat style="@style/UiControl" android:id="@+id/overview_auto_input" android:text="@string/pref_enable_auto_input_code_title" />
+                <androidx.appcompat.widget.SwitchCompat style="@style/UiControl" android:id="@+id/overview_notification" android:text="@string/pref_show_code_notification_title" />
+                <androidx.appcompat.widget.SwitchCompat style="@style/UiControl" android:id="@+id/overview_clipboard" android:text="@string/pref_copy_to_clipboard_title" />
+            </LinearLayout>
+        </androidx.cardview.widget.CardView>
+        <androidx.cardview.widget.CardView style="@style/UiCard" android:layout_width="match_parent" android:layout_height="wrap_content">
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="20dp">
+                <TextView style="@style/UiSectionTitle" android:text="@string/overview_shortcuts" />
+                <TextView style="@style/UiControl" android:id="@+id/overview_records" android:text="@string/pref_entry_code_records_title" android:clickable="true" android:focusable="true" android:drawableEnd="@drawable/ic_chevron" android:drawablePadding="16dp" />
+                <TextView style="@style/UiControl" android:id="@+id/overview_rules" android:text="@string/pref_code_rules_title" android:clickable="true" android:focusable="true" android:drawableEnd="@drawable/ic_chevron" android:drawablePadding="16dp" />
+                <TextView style="@style/UiControl" android:id="@+id/overview_settings" android:text="@string/tab_settings_title" android:clickable="true" android:focusable="true" android:drawableEnd="@drawable/ic_chevron" android:drawablePadding="16dp" />
+            </LinearLayout>
+        </androidx.cardview.widget.CardView>
+        <androidx.cardview.widget.CardView style="@style/UiCard" android:layout_width="match_parent" android:layout_height="wrap_content">
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="20dp">
+                <TextView style="@style/UiSectionTitle" android:text="@string/overview_app_info" />
+                <TextView android:id="@+id/overview_version" android:layout_width="match_parent" android:layout_height="wrap_content" android:textSize="16sp" android:textColor="?android:attr/textColorPrimary" />
+                <TextView android:id="@+id/overview_device" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:textSize="14sp" android:textColor="?android:attr/textColorSecondary" />
+            </LinearLayout>
+        </androidx.cardview.widget.CardView>
+    </LinearLayout>
+</androidx.core.widget.NestedScrollView>

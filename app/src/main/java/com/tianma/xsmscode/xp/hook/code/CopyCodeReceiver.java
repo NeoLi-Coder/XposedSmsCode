@@ -4,6 +4,9 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.os.Build;
+import android.os.Binder;
+import android.text.TextUtils;
 import android.widget.Toast;
 
 import com.github.tianma8023.xposed.smscode.BuildConfig;
@@ -32,20 +35,35 @@ public class CopyCodeReceiver extends BroadcastReceiver {
         return intent;
     }
 
-    public static void registerMe(Context context) {
+    private static boolean registered;
+
+    public static synchronized void registerMe(Context context) {
+        if (registered) return;
         CopyCodeReceiver receiver = CopyCodeReceiver.newInstance();
         IntentFilter filter = new IntentFilter();
         filter.addAction(ACTION_COPY_CODE);
-        context.registerReceiver(receiver, filter);
+        long identity = Binder.clearCallingIdentity();
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                context.registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED);
+            } else {
+                context.registerReceiver(receiver, filter, android.Manifest.permission.MODIFY_PHONE_STATE, null);
+            }
+            registered = true;
+        } finally {
+            Binder.restoreCallingIdentity(identity);
+        }
     }
 
     private Context mPluginContext;
 
     @Override
     public void onReceive(Context phoneContext, Intent intent) {
+        if (intent == null) return;
         String action = intent.getAction();
         if (ACTION_COPY_CODE.equals(action)) {
             String smsCode = intent.getStringExtra(EXTRA_KEY_CODE);
+            if (TextUtils.isEmpty(smsCode)) return;
             // copy to clipboard
             ClipboardUtils.copyToClipboard(phoneContext, smsCode);
 
